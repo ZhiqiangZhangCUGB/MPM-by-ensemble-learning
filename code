@@ -1,0 +1,274 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import recall_score
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
+
+from sklearn.preprocessing import MinMaxScaler
+from sklearn import tree
+from sklearn.ensemble import RandomForestClassifier as RFC
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression as LR
+import xgboost as xgb
+from sklearn.neural_network import MLPClassifier as DNN
+import keras 
+#from keras.models import Sequential # intitialize the ANN
+#Stacking
+from mlxtend.classifier import StackingClassifier
+#from tensorflow.keras
+#from keras.layers import Dense      # create layers
+from keras.layers import Dense
+from keras.models import Sequential
+data=pd.read_csv('your data path')
+Xtrain,Xtest,Ytrain,Ytest=train_test_split(X,Y,test_size=0.3,random_state=0)
+#decision tree
+test = []
+for i in range(10):
+    clf = tree.DecisionTreeClassifier(max_depth=i+1
+                                    ,criterion="entropy"
+                                    ,random_state=0
+                                    ,splitter="random"
+                                    )
+    clf = clf.fit(Xtrain, Ytrain)
+    score = clf.score(Xtest, Ytest)
+    test.append(score)
+plt.plot(range(1,11),test,color="red",label="max_depth")
+plt.legend()
+plt.show()
+treeclf = tree.DecisionTreeClassifier(max_depth=8
+                                     ,criterion="entropy"
+                                     ,random_state=0
+                                     ,splitter="random"
+                                     ).fit(Xtrain,Ytrain)
+tpredict=treeclf.predict_proba(Xtest)
+#Random forest
+scorel=[]
+Y=np.array(Y).ravel()#1D标签，随机森林
+for i in range(50,150):
+    rfc=RFC(n_estimators=i+1,n_jobs=-1,random_state=0)
+    score=cross_val_score(rfc,X,Y,cv=5).mean()
+    scorel.append(score)
+print(max(scorel),(scorel.index(max(scorel)))+51)
+plt.plot(range(51,151),scorel)
+plt.show()
+param_grid={'max_depth':np.arange(1,20,1)}
+rfc=RFC(n_estimators=58,n_jobs=-1,random_state=0)
+GS=GridSearchCV(rfc,param_grid,cv=5)
+GS.fit(X,Y)
+GS.best_score_
+GS.best_params_
+Ytrain=np.array(Ytrain).ravel()
+rfc=RFC(n_estimators=58,max_depth=4
+        ,class_weight='balanced'
+        ,random_state=0)
+rfc=rfc.fit(Xtrain,Ytrain)
+rfcpredict_2=rfc.predict_proba(Xtest)
+# SVM
+Kernel=['linear','poly','rbf','sigmoid']
+Ytrain=np.array(Ytrain).ravel()#1D
+for kernel in Kernel:
+    clf=SVC(kernel=kernel,gamma='auto'
+            ,degree=1,cache_size=5000).fit(Xtrain,Ytrain)
+    score=clf.score(Xtest,Ytest)
+    recall=recall_score(Ytest,clf.predict(Xtest))
+    auc=roc_auc_score(Ytest,clf.decision_function(Xtest))
+    print("%s:testing accuracy %f, recall is %f', auc is %f" %
+(kernel,score,recall,auc))
+gamma_range=np.linspace(0.0001,0.005,80)
+score=[]
+recallscore=[]
+aucscore=[]
+for gamma in gamma_range:
+    clf=SVC(kernel='rbf',gamma=gamma
+            ,cache_size=5000,C=1).fit(Xtrain,Ytrain)
+    result=clf.predict(Xtest)
+    score_1=clf.score(Xtest,Ytest)
+    recall_1=recall_score(Ytest,result)
+    auc_1=roc_auc_score(Ytest,clf.decision_function(Xtest))
+    score.append(score_1)
+    recallscore.append(recall_1)
+    aucscore.append(auc_1)
+recall=np.array(recall)
+plt.figure()
+plt.plot(gamma_range,score,c='red',label='score')
+plt.plot(gamma_range,recallscore,c='b',label='recall')
+plt.plot(gamma_range,aucscore,c='green',label='auc')
+plt.legend()
+plt.show()
+svmclf=SVC(kernel='rbf',gamma=0.003
+        ,C=1,cache_size=5000
+        #,class_weight='balanced'
+        ,probability=True).fit(Xtrain,Ytrain)
+spredict=svmclf.predict_proba(Xtest)
+# logsitic regression
+scorel1=[]
+scorel2=[]
+Ytrain=np.array(Ytrain).ravel()
+C=np.arange(0.001,0.5,0.05)
+for i in np.arange(0.001,0.5,0.05):
+    lrl1=LR(penalty='l1',solver='liblinear',C=i,max_iter=1000)
+    lrl2=LR(penalty='l2',solver='liblinear',C=i,max_iter=1000)
+    scoreL1=cross_val_score(lrl1,Xtrain,Ytrain,cv=5).mean()
+    scoreL2=cross_val_score(lrl2,Xtrain,Ytrain,cv=5).mean()
+    scorel1.append(scoreL1)
+    scorel2.append(scoreL2)
+plt.plot(np.arange(0,0.5,0.05),scorel1,color='red',label='L1')
+plt.plot(np.arange(0,0.5,0.05),scorel2,color='black',label='L2')
+plt.legend()
+plt.show()
+print(max(scorel1),C[scorel1.index(max(scorel1))])
+print(max(scorel2),C[scorel2.index(max(scorel2))])
+from sklearn.linear_model import LogisticRegression as LR
+score=[]
+C=np.arange(100,200)
+for i in np.arange(100,200):#新版最低100
+    lrl2=LR(penalty='l2',solver='liblinear',C=0.1,max_iter=i)
+    once=cross_val_score(lrl2,X,Y.values.ravel(),cv=5).mean()
+    score.append(once)
+plt.plot(np.arange(0,100),score)
+plt.show()
+print(max(score),C[score.index(max(score))])
+Ytrain=np.array(Ytrain).ravel()
+lrl2=LR(penalty='l2',solver='liblinear',C=0.1,max_iter=10).fit(Xtrain,Ytrain)
+lpredict=lrl2.predict_proba(Xtest)
+# XGBOOST
+dfull=xgb.DMatrix(X,Y)
+param1={'silent':True
+       ,'subsample':1
+       ,'obj':'binary:log_loss'
+       ,'max_depth':3
+       ,'eta':0.1
+       ,'gamma':0
+       ,'lambda':1
+       ,'alpha':0
+       ,'colsample_bytree':1
+       ,'colsample_bylevel':1
+       ,'colsample_bynode':1
+       ,'nfold':5}
+#默认
+num_round=200
+cvresult1=xgb.cv(param1,dfull,num_round)
+fig,ax=plt.subplots(1,figsize=(15,8))
+ax.set_ylim(top=0.6)
+ax.plot(range(1,201),cvresult1.iloc[:,0],c='red'
+       ,label='train,original')
+ax.plot(range(1,201),cvresult1.iloc[:,2],c='orange'
+       ,label='test,original')
+
+param2={'silent':True
+       ,'subsample':1
+       ,'obj':'binary:log_loss'
+       ,'max_depth':3
+       ,'eta':0.1
+       ,'gamma':0
+       ,'lambda':1
+       ,'alpha':0
+       ,'colsample_bytree':1
+       ,'colsample_bylevel':1
+       ,'colsample_bynode':1
+       ,'nfold':5}
+param3={'silent':True
+       ,'subsample':1
+       ,'obj':'binary:log_loss'
+       ,'max_depth':3
+       ,'eta':0.1
+       ,'gamma':0
+       ,'lambda':1
+       ,'alpha':0
+       ,'colsample_bytree':1
+       ,'colsample_bylevel':1
+       ,'colsample_bynode':1
+       ,'nfold':5}
+#现在正在调整的参数的影响
+cvresult2=xgb.cv(param3,dfull,num_round)
+cvresult3=xgb.cv(param1,dfull,num_round)
+
+
+
+ax.plot(range(1,201),cvresult2.iloc[:,0],c='green'
+       ,label='train,last')
+ax.plot(range(1,201),cvresult2.iloc[:,2],c='blue'
+       ,label='test,last')
+ax.plot(range(1,201),cvresult3.iloc[:,0],c='gray'
+       ,label='train,this')
+ax.plot(range(1,201),cvresult3.iloc[:,2],c='pink'
+       ,label='test,this')
+ax.legend(fontsize='xx-large')
+plt.show()
+predictdata_1=xgb.DMatrix(predictdata)
+xgboostpredict=xgbc.predict(predictdata_1)
+xgboostpredict=pd.DataFrame(xgboostpredict)
+#ANN
+# Initialising the NN
+model = Sequential()
+from keras import layers
+# layers
+model.add(Dense(units = 50, kernel_initializer = 'uniform'
+                , activation = 'relu', input_dim = 5))
+model.add(layers.Dropout(0.5))
+model.add(Dense(units = 50, kernel_initializer = 'uniform'
+                , activation = 'relu'))
+model.add(layers.Dropout(0.5))
+model.add(Dense(units = 25, kernel_initializer = 'uniform'
+                , activation = 'relu'))
+model.add(layers.Dropout(0.5))
+model.add(Dense(units = 1, kernel_initializer = 'uniform'
+                , activation = 'sigmoid'))
+
+# Compiling the ANN
+model.compile(optimizer = 'adam'
+              , loss = 'binary_crossentropy'
+              , metrics = ['accuracy'])
+ # Train the ANN
+model.fit(Xtrain,Ytrain,batch_size = 60, epochs = 200)
+#stacking
+from mlxtend.classifier import StackingClassifier
+from sklearn.ensemble import RandomForestClassifier as RFC
+from xgboost import XGBClassifier as xgb
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression as LR
+from sklearn.model_selection import cross_val_score
+
+clf1 = RFC(n_estimators=58,n_jobs=-1,random_state=0)
+clf2 = xgb(n_estimators=200,learning_rate=0.1,max_depth=3,random_state=0)
+clf3 = SVC(kernel='rbf',gamma=0.003,C=1,cache_size=5000,probability=True,random_state=0)
+clf4=LR(penalty='l2',solver='liblinear',C=0.1,max_iter=10,random_state=0)
+sclf = StackingClassifier(classifiers=[clf1
+                                       ,clf2
+                                       ,clf3]
+                        ,meta_classifier=clf2)
+Y=np.array(Y).ravel()
+cross_val_score(sclf, X, Y, cv=5).mean()
+sclfpredict_2=sclf.fit(Xtrain,Ytrain).predict_proba(Xtest)
+#ROC
+from sklearn.metrics import roc_curve
+FPR_2=[]
+recall_2=[]
+thresholds_2=[]
+clfdf=[tpredict#决策树
+       ,rfcpredict_2[:,1]#随机森林
+       ,spredict[:,1]#SVM
+       ,lpredict[:,1]#逻辑回归
+       ,sclfpredict_4[:,1]#stacking
+      ]
+
+for i in range(5):
+    FPR_1,recall_1,thresholds_1=roc_curve(Ytest,clfdf[i],pos_label=1)
+    FPR_2.append(FPR_1)
+    recall_2.append(recall_1)
+    thresholds_2.append(thresholds_1)
+color=('red','black','gray','green','blue'
+       #,'orange','pink'
+      )
+for i in range(5):
+    figsize=(10,10)
+    plt.plot(FPR_2[i],recall_2[i],color[i])
+    plt.plot([0,1],[0,1],linestyle='--')
+    plt.xlim(-0.1,1.1)
+    plt.ylim(-0.1,1.1)
